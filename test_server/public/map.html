@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>휠도시 – 접근성 지도</title>
+  <style>
+    :root{ --bg:#f6f8fb; --panel:#ffffff; --border:#d0d7e2; --text:#0b1220; --muted:#5b6b86; }
+    html,body{height:100%} body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",Helvetica,Arial}
+    header,footer{background:#fff;border-bottom:1px solid var(--border)}
+    .wrap{max-width:1200px;margin:0 auto;padding:12px 16px}
+    #map{height:70vh;border-top:1px solid var(--border)}
+    footer{border-top:1px solid var(--border);border-bottom:none;color:var(--muted)}
+  </style>
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=YOUR_KAKAO_JAVASCRIPT_KEY&autoload=false"></script>
+</head>
+<body>
+  <header><div class="wrap"><a href="index.html">← 휠도시</a></div></header>
+  <main class="wrap">
+    <h1>접근성 지도</h1>
+    <div id="map"></div>
+  </main>
+  <footer><div class="wrap">© 2025 휠도시 · Map API by KakaoMap</div></footer>
+
+  <script>
+    (function boot(){ if(window.kakao&&kakao.maps&&kakao.maps.load) kakao.maps.load(init); else setTimeout(boot,50); })();
+    function init(){
+      const map = new kakao.maps.Map(document.getElementById('map'), {
+        center: new kakao.maps.LatLng(37.5662952,126.9779451), level:5
+      });
+    }
+  </script>
+</body>
+</html>

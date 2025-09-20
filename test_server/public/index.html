@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>휠도시 – Wheel City</title>
+
+    <!-- Kakao SDK -->
+    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=01785b9a288ab46417b78a3790ac85c5&libraries=services&autoload=false"></script>
+
+    <style>
+      :root{
+        /* === Light Theme === */
+        --bg:#f6f8fb;        /* 페이지 배경 */
+        --panel:#ffffff;      /* 카드/패널 배경 */
+        --panel-2:#f1f5f9;    /* hover 배경 */
+        --border:#d0d7e2;     /* 테두리 */
+        --text:#0b1220;       /* 본문 글자색 (진한 남색 계열) */
+        --muted:#5b6b86;      /* 보조 글자색 */
+        --accent:#0ea5e9;     /* 포인트 (하늘색) */
+        --frame:#ffffff;      /* 지도 영역 배경 */
+      }
+      *{box-sizing:border-box}
+      html,body{height:100%}
+      body{
+        margin:0;background:var(--bg);color:var(--text);
+        font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",Helvetica,Arial
+      }
+
+      /* ===== 상단/하단: 기존 구조 유지 (밝게) ===== */
+      .app{min-height:100%;display:grid;grid-template-rows:auto 1fr auto}
+      header.top{
+        position:sticky;top:0;z-index:20;background:rgba(255,255,255,.9);
+        backdrop-filter:blur(8px);border-bottom:1px solid var(--border);
+      }
+      .top-inner{
+        max-width:1200px;margin:0 auto;padding:12px 16px;display:grid;gap:12px;
+        grid-template-columns:1fr 520px auto;align-items:center;
+      }
+      .brand{display:flex;gap:10px;align-items:center;font-weight:800;letter-spacing:.3px}
+      .brand .dot{
+        width:10px;height:10px;border-radius:999px;background:var(--accent);
+        box-shadow:0 0 10px rgba(14,165,233,.5)
+      }
+      .search{
+        display:flex;gap:8px;align-items:center;background:var(--panel);
+        border:1px solid var(--border);border-radius:14px;padding:8px 10px;
+      }
+      .search input{all:unset;flex:1;font-size:15px;color:var(--text)}
+      .btn{
+        cursor:pointer;border:1px solid var(--border);background:var(--panel);
+        color:var(--text);height:40px;padding:0 14px;border-radius:10px;font-weight:700
+      }
+      .btn:hover{outline:1px solid #bfd3ea}
+      .btn:active{transform:translateY(1px)}
+
+      footer{
+        border-top:1px solid var(--border);background:rgba(255,255,255,.9);
+        color:var(--muted);
+      }
+      .footer-inner{
+        max-width:1200px;margin:0 auto;padding:14px 16px;font-size:12px;
+        display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;
+      }
+      .credit a{color:var(--muted);text-decoration:underline}
+
+      /* ===== 본문(지도로 최대 채움) ===== */
+      .main-wrap{
+        width:100vw;
+        display:grid;
+        grid-template-columns:260px minmax(0,1fr); /* 왼쪽 메뉴 폭 고정 */
+        gap:0;
+      }
+
+      /* 왼쪽 메뉴: 폭/스타일 유지, 좌측 고정 */
+      aside.nav{
+        background:var(--panel);
+        border-right:1px solid var(--border);
+        padding:12px;
+        min-height:100%;
+      }
+      .nav h3{margin:4px 8px 10px;font-size:13px;color:var(--muted);font-weight:700}
+      .menu{display:grid;gap:6px}
+      .menu a{
+        display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
+        color:var(--text);text-decoration:none;background:transparent;border:1px solid transparent;
+      }
+      .menu a:hover{background:var(--panel-2);border-color:var(--border)}
+      .menu .badge{font-size:11px;color:var(--muted)}
+
+      /* 지도 영역 */
+      .map-area{ position:relative; background:var(--frame); }
+      #mapWrap{ position:relative; width:100%; }
+      #map{
+        position:absolute; inset:0;
+        border-left:1px solid var(--border);
+      }
+
+      /* 지도 우상단 툴바 */
+      .map-toolbar{
+        position:absolute; top:12px; right:12px; z-index:5;
+        display:flex; gap:8px;
+        background:rgba(255,255,255,.9); border:1px solid var(--border);
+        padding:8px; border-radius:12px;
+      }
+
+      @media (max-width: 980px){
+        .top-inner{grid-template-columns:1fr auto auto}
+        .main-wrap{grid-template-columns:1fr}
+        aside.nav{border-right:none;border-bottom:1px solid var(--border)}
+        #map{border-left:none}
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <!-- ===== 헤더 ===== -->
+      <header class="top">
+        <div class="top-inner">
+          <div class="brand">
+            <span class="dot"></span>
+            <span>휠도시</span>
+          </div>
+          <form id="searchForm" class="search" onsubmit="return false;">
+            <input id="keyword" type="text" placeholder="장소/주소 검색 (예: 무장애 화장실, 경사로, 카페)" />
+            <button id="searchBtn" class="btn" type="button" title="검색">검색</button>
+          </form>
+          <!-- 로그인 -->
+          <button class="btn" id="loginBtn" type="button" onclick="location.href='login.html'">로그인</button>
+        </div>
+      </header>
+
+      <!-- ===== 본문(메뉴 + 지도 최대) ===== -->
+      <div class="main-wrap">
+        <!-- 왼쪽 메뉴 -->
+        <aside class="nav" aria-label="사이드 메뉴">
+          <h3>메뉴</h3>
+          <nav class="menu">
+            <a href="about.html" title="휠도시 소개">📖 소개 <span class="badge">About</span></a>
+            <a href="report.html" title="경사로 제보하기">🧭 경사로 제보하기 <span class="badge">Report</span></a>
+            <a href="map.html" title="접근성 지도">🗺️ 접근성 지도 <span class="badge">Map</span></a>
+            <a href="help.html" title="도움말/문의">💬 도움말/문의 <span class="badge">Help</span></a>
+          </nav>
+        </aside>
+
+        <!-- 지도 -->
+        <section class="map-area" aria-label="지도 영역">
+          <div class="map-toolbar">
+            <button class="btn" id="roadmap" title="일반 지도" style="height:32px">일반</button>
+            <button class="btn" id="skyview" title="스카이뷰" style="height:32px">스카이뷰</button>
+            <button class="btn" id="fitBoundsBtn" title="결과 범위맞춤" style="height:32px">범위</button>
+          </div>
+          <div id="mapWrap">
+            <div id="map" aria-label="Kakao Map"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ===== 푸터 ===== -->
+      <footer>
+        <div class="footer-inner">
+          <div class="credit">© 2025 휠도시</div>
+          <div class="credit">지도/Map API 제공: <a href="https://map.kakao.com/" target="_blank" rel="noopener">KakaoMap</a></div>
+        </div>
+      </footer>
+    </div>
+
+    <script>
+      // ===== Kakao SDK 로드 & 지도 초기화 =====
+      (function boot(){
+        if (window.kakao && kakao.maps && typeof kakao.maps.load === 'function') {
+          kakao.maps.load(initMap);
+        } else {
+          setTimeout(boot, 50);
+        }
+      })();
+
+      let map, places, markers=[], lastBounds=null;
+
+      // 헤더/푸터 높이에 맞춰 지도 세로공간 계산
+      function resizeMapHeight() {
+        const headerH = document.querySelector('header.top')?.offsetHeight || 0;
+        const footerH = document.querySelector('footer')?.offsetHeight || 0;
+        const vh = window.innerHeight || document.documentElement.clientHeight;
+        const mapWrap = document.getElementById('mapWrap');
+        mapWrap.style.height = Math.max(240, vh - headerH - footerH) + 'px';
+      }
+      window.addEventListener('resize', ()=>{
+        resizeMapHeight();
+        if (map) kakao.maps.event.trigger(map, 'resize');
+      });
+
+      function initMap(){
+        resizeMapHeight();
+
+        const center = new kakao.maps.LatLng(37.5662952, 126.9779451); // 서울 중심
+        map = new kakao.maps.Map(document.getElementById('map'), { center, level:5 });
+        places = new kakao.maps.services.Places();
+
+        // 상단 검색(간단)
+        document.getElementById('searchBtn').addEventListener('click', onSearch);
+        document.getElementById('keyword').addEventListener('keydown', (e)=>{ if(e.key==='Enter') onSearch(); });
+
+        // 지도 타입
+        document.getElementById('roadmap').addEventListener('click', ()=> map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP));
+        document.getElementById('skyview').addEventListener('click', ()=> map.setMapTypeId(kakao.maps.MapTypeId.HYBRID));
+        document.getElementById('fitBoundsBtn').addEventListener('click', ()=>{ if(lastBounds) map.setBounds(lastBounds); });
+      }
+
+      function onSearch(){
+        const q = document.getElementById('keyword').value.trim();
+        if(!q) return;
+        places.keywordSearch(q, (data, status) => {
+          if(status !== kakao.maps.services.Status.OK){ clearMarkers(); lastBounds=null; return; }
+          clearMarkers();
+          const bounds = new kakao.maps.LatLngBounds();
+          data.forEach(p=>{
+            const pos = new kakao.maps.LatLng(p.y, p.x);
+            bounds.extend(pos);
+            const m = new kakao.maps.Marker({ position: pos });
+            markers.push(m); m.setMap(map);
+          });
+          lastBounds=bounds; map.setBounds(bounds);
+        }, { size: 12 });
+      }
+
+      function clearMarkers(){ markers.forEach(m=>m.setMap(null)); markers=[]; }
+    </script>
+  </body>
+</html>
